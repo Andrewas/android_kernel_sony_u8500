@@ -1,5 +1,5 @@
 /*
- * kernel/time/sched_debug.c
+ * kernel/sched/debug.c
  *
  * Print the CFS rbtree
  *
@@ -15,6 +15,8 @@
 #include <linux/seq_file.h>
 #include <linux/kallsyms.h>
 #include <linux/utsname.h>
+
+#include "sched.h"
 
 static DEFINE_SPINLOCK(sched_debug_lock);
 
@@ -213,6 +215,14 @@ void print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 	SEQ_printf(m, "  .%-30s: %d\n", "load_tg",
 			atomic_read(&cfs_rq->tg->load_weight));
 #endif
+#ifdef CONFIG_CFS_BANDWIDTH
+	SEQ_printf(m, "  .%-30s: %d\n", "tg->cfs_bandwidth.timer_active",
+			cfs_rq->tg->cfs_bandwidth.timer_active);
+	SEQ_printf(m, "  .%-30s: %d\n", "throttled",
+			cfs_rq->throttled);
+	SEQ_printf(m, "  .%-30s: %d\n", "throttle_count",
+			cfs_rq->throttle_count);
+#endif
 
 	print_cfs_group_stats(m, cpu, cfs_rq->tg);
 #endif
@@ -286,7 +296,6 @@ static void print_cpu(struct seq_file *m, int cpu)
 
 	P(yld_count);
 
-	P(sched_switch);
 	P(sched_count);
 	P(sched_goidle);
 #ifdef CONFIG_SMP
@@ -373,7 +382,7 @@ static int sched_debug_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static void sysrq_sched_debug_show(void)
+void sysrq_sched_debug_show(void)
 {
 	sched_debug_show(NULL, NULL);
 }

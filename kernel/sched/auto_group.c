@@ -1,15 +1,19 @@
 #ifdef CONFIG_SCHED_AUTOGROUP
 
+#include "sched.h"
+
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/kallsyms.h>
 #include <linux/utsname.h>
+#include <linux/security.h>
+#include <linux/export.h>
 
 unsigned int __read_mostly sysctl_sched_autogroup_enabled = 1;
 static struct autogroup autogroup_default;
 static atomic_t autogroup_seq_nr;
 
-static void __init autogroup_init(struct task_struct *init_task)
+void __init autogroup_init(struct task_struct *init_task)
 {
 	autogroup_default.tg = &root_task_group;
 	kref_init(&autogroup_default.kref);
@@ -17,7 +21,7 @@ static void __init autogroup_init(struct task_struct *init_task)
 	init_task->signal->autogroup = &autogroup_default;
 }
 
-static inline void autogroup_free(struct task_group *tg)
+void autogroup_free(struct task_group *tg)
 {
 	kfree(tg->autogroup);
 }
@@ -58,10 +62,6 @@ static inline struct autogroup *autogroup_task_get(struct task_struct *p)
 
 	return ag;
 }
-
-#ifdef CONFIG_RT_GROUP_SCHED
-static void free_rt_sched_group(struct task_group *tg);
-#endif
 
 static inline struct autogroup *autogroup_create(void)
 {
@@ -108,8 +108,7 @@ out_fail:
 	return autogroup_kref_get(&autogroup_default);
 }
 
-static inline bool
-task_wants_autogroup(struct task_struct *p, struct task_group *tg)
+bool task_wants_autogroup(struct task_struct *p, struct task_group *tg)
 {
 	if (tg != &root_task_group)
 		return false;
@@ -125,22 +124,6 @@ task_wants_autogroup(struct task_struct *p, struct task_group *tg)
 		return false;
 
 	return true;
-}
-
-static inline bool task_group_is_autogroup(struct task_group *tg)
-{
-	return !!tg->autogroup;
-}
-
-static inline struct task_group *
-autogroup_task_group(struct task_struct *p, struct task_group *tg)
-{
-	int enabled = ACCESS_ONCE(sysctl_sched_autogroup_enabled);
-
-	if (enabled && task_wants_autogroup(p, tg))
-		return p->signal->autogroup->tg;
-
-	return tg;
 }
 
 static void
@@ -208,20 +191,20 @@ __setup("noautogroup", setup_autogroup);
 
 #ifdef CONFIG_PROC_FS
 
-int proc_sched_autogroup_set_nice(struct task_struct *p, int *nice)
+int proc_sched_autogroup_set_nice(struct task_struct *p, int nice)
 {
 	static unsigned long next = INITIAL_JIFFIES;
 	struct autogroup *ag;
 	int err;
 
-	if (*nice < -20 || *nice > 19)
+	if (nice < -20 || nice > 19)
 		return -EINVAL;
 
-	err = security_task_setnice(current, *nice);
+	err = security_task_setnice(current, nice);
 	if (err)
 		return err;
 
-	if (*nice < 0 && !can_nice(current, *nice))
+	if (nice < 0 && !can_nice(current, nice))
 		return -EPERM;
 
 	/* this is a heavy operation taking global locks.. */
@@ -232,9 +215,9 @@ int proc_sched_autogroup_set_nice(struct task_struct *p, int *nice)
 	ag = autogroup_task_get(p);
 
 	down_write(&ag->lock);
-	err = sched_group_set_shares(ag->tg, prio_to_weight[*nice + 20]);
+	err = sched_group_set_shares(ag->tg, prio_to_weight[nice + 20]);
 	if (!err)
-		ag->nice = *nice;
+		ag->nice = nice;
 	up_write(&ag->lock);
 
 	autogroup_kref_put(ag);
@@ -259,7 +242,7 @@ out:
 #endif /* CONFIG_PROC_FS */
 
 #ifdef CONFIG_SCHED_DEBUG
-static inline int autogroup_path(struct task_group *tg, char *buf, int buflen)
+int autogroup_path(struct task_group *tg, char *buf, int buflen)
 {
 	if (!task_group_is_autogroup(tg))
 		return 0;
