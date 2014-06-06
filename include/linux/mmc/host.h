@@ -12,6 +12,7 @@
 
 #include <linux/leds.h>
 #include <linux/sched.h>
+#include <linux/device.h>
 #include <linux/fault-inject.h>
 
 #include <linux/mmc/core.h>
@@ -407,7 +408,7 @@ int mmc_card_can_sleep(struct mmc_host *host);
 int mmc_pm_notify(struct notifier_block *notify_block, unsigned long, void *);
 
 /* Module parameter */
-extern int mmc_assume_removable;
+extern bool mmc_assume_removable;
 
 static inline int mmc_card_is_removable(struct mmc_host *host)
 {
@@ -463,6 +464,4 @@ static inline unsigned int mmc_host_clk_rate(struct mmc_host *host)
 	return host->ios.clock;
 }
 #endif
-
-#endif
-
+#endif /* LINUX_MMC_HOST_H */

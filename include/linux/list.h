@@ -722,5 +722,3 @@ static inline void hlist_move_list(struct hlist_head *old,
 #define hlist_for_each_entry_safe(...) \
 	macro_dispatcher(hlist_for_each_entry_safe, __VA_ARGS__)(__VA_ARGS__)
 #endif
-
-

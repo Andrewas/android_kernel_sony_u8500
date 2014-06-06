@@ -1,6 +1,4 @@
 /*
- * hsi_char.h
- *
  * Part of the HSI character device driver.
  *
  * Copyright (C) 2010 Nokia Corporation. All rights reserved.
